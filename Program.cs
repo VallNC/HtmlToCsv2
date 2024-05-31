@@ -34,6 +34,7 @@ await NewMethod(client, areaNameList);
         int nameNumber = 0;
         foreach (var item in areaList)
         {
+          int areaInt = 1;
             int maxSize = 0;
             List<Candidate> candidates = new List<Candidate>();
             var result = item.Split(new[] { '\r', '\n' });
@@ -65,7 +66,8 @@ await NewMethod(client, areaNameList);
             }
 
             //Add class to csv method
-            ClassToCsv(maxSize, nameNumber, candidates);
+            ClassToCsv(maxSize, nameNumber, candidates, areaInt, areaNameList);
+            areaInt++;
             nameNumber++;
         }
     }
@@ -81,46 +83,23 @@ static async Task NewMethod(HttpClient client, List<string> areaNameList)
     var httpText = htmlWeb.Load("""https://www.cik.bg/bg/epns2024/candidates/ns?rik=0&party=0""");
           string[] resultNames = httpText.Text.Split("\n\r".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
     int testNumber = 0;
+    System.Console.WriteLine(resultNames[1]);
+    System.Console.WriteLine(resultNames[2]);
     for (int i = 0; i < resultNames.Length; i++)
     {      
-     // System.Console.WriteLine(resultNames[i]);
-        if (resultNames[i].Contains("""<select class="rik" style="width: 100%">"""))
+     
+        if (resultNames[i].Contains("""<select class="rik"""))
         {
-            {
-              System.Console.WriteLine(resultNames[i]);
-                i++;
-                bool startFound = false;
-                for (int int2 = 0; int2 < resultNames[i].Length-1; int2++)
-                {
-                  if (resultNames[i][int2]==('\"'))
-                  {
-                      if (!startFound)
-                      {
-                          startFound=true;
-                      }
-                      else
-                      {
-                        int charEnd = 0;
-                        for (int int3 = int2; int3 < resultNames[i].Length; int3++,charEnd++)
-                        {
-                          if(resultNames[i][int3]==('<'))
-                          {
-                            break;
-                          }
-                        }
-                          areaNameList.Add(resultNames[i].Substring(int2,charEnd));
-                          startFound = false;
-                      }
-                      
-                      //System.Console.WriteLine(areaNameList[testNumber]);
-                      testNumber++;
-                      i++;
-                  }
-                }
+            
+              areaNameList=ExtractPartyNames(resultNames[i]);
                 break;
-            }
+            
         }
 
+    }
+    foreach(var item in areaNameList)
+    {
+      System.Console.WriteLine(item);
     }
 }
 
@@ -144,9 +123,10 @@ static async Task GrabEveryJson(HttpClient client, List<string> areaList)
     }
 }
 
-static void ClassToCsv(int maxSize, int nameNumberV, List<Candidate> candidates)
+static void ClassToCsv(int maxSize, int nameNumberV, List<Candidate> candidates,int areaInt,List<string> areaList)
 {
-  using (var writer = new StreamWriter($".\\CsvFolder\\{nameNumberV}.csv"))
+  string areaName = areaList[areaInt];
+  using (var writer = new StreamWriter($".\\CsvFolder\\{areaName}.csv"))
   {
     string names = "";
     foreach (var itemList in candidates)
@@ -165,6 +145,28 @@ static void ClassToCsv(int maxSize, int nameNumberV, List<Candidate> candidates)
   }
 }
 
+ static List<string> ExtractPartyNames(string html)
+    {
+        var partyNames = new List<string>();
+
+        HtmlDocument document = new HtmlDocument();
+        document.LoadHtml(html);
+
+        var partySelect = document.DocumentNode.SelectSingleNode("//select[@class='rik']");
+        if (partySelect != null)
+        {
+            foreach (var option in partySelect.SelectNodes(".//option"))
+            {
+                string name = option.InnerText;
+                if (!name.Equals("Всички"))
+                {
+                    partyNames.Add(name);
+                }
+            }
+        }
+
+        return partyNames;
+    }
 public class Candidate
 {
   public Candidate(string groupName, string personNames)
