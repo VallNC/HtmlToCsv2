@@ -14,7 +14,7 @@ Console.OutputEncoding = Encoding.UTF8;
 using HttpClient client = new HttpClient();
 {
 List<string> areaNameList = new List<string>();
-await NewMethod(client, areaNameList);
+areaNameList = await GrabAreaNames(client, areaNameList);
   client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
   client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
   client.DefaultRequestHeaders.Add("Referer", "https://example.com");
@@ -29,12 +29,12 @@ await NewMethod(client, areaNameList);
   try
     {
         
-
-        await GrabEveryJson(client, areaList);
+int areaInt = 0;
+        await GrabEveryJson(client, areaList,areaNameList.Count);
         int nameNumber = 0;
         foreach (var item in areaList)
         {
-          int areaInt = 1;
+          
             int maxSize = 0;
             List<Candidate> candidates = new List<Candidate>();
             var result = item.Split(new[] { '\r', '\n' });
@@ -77,12 +77,11 @@ await NewMethod(client, areaNameList);
   }
 }
 
-static async Task NewMethod(HttpClient client, List<string> areaNameList)
+static async Task<List<string>> GrabAreaNames(HttpClient client, List<string> areaNameList)
 {
    var htmlWeb = new HtmlWeb();
     var httpText = htmlWeb.Load("""https://www.cik.bg/bg/epns2024/candidates/ns?rik=0&party=0""");
           string[] resultNames = httpText.Text.Split("\n\r".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
-    int testNumber = 0;
     System.Console.WriteLine(resultNames[1]);
     System.Console.WriteLine(resultNames[2]);
     for (int i = 0; i < resultNames.Length; i++)
@@ -101,12 +100,13 @@ static async Task NewMethod(HttpClient client, List<string> areaNameList)
     {
       System.Console.WriteLine(item);
     }
+    return areaNameList;
 }
 
-static async Task GrabEveryJson(HttpClient client, List<string> areaList)
+static async Task GrabEveryJson(HttpClient client, List<string> areaList,int listSize)
 {
   //i<32
-    for (int i = 1; i < 32; i++)
+    for (int i = 1; i < listSize; i++)
     {
        // if (i == 2)
             //2ри район не връща json
@@ -125,7 +125,13 @@ static async Task GrabEveryJson(HttpClient client, List<string> areaList)
 
 static void ClassToCsv(int maxSize, int nameNumberV, List<Candidate> candidates,int areaInt,List<string> areaList)
 {
-  string areaName = areaList[areaInt];
+  string areaName;
+  if(areaList.Count>areaInt){
+    areaName = areaList[areaInt];
+  }
+   else{
+    areaName = areaInt.ToString();
+   }
   using (var writer = new StreamWriter($".\\CsvFolder\\{areaName}.csv"))
   {
     string names = "";
