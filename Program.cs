@@ -8,13 +8,14 @@ using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
 using System.Text.Json;
 using System.Dynamic;
+using HtmlToCsv2;
 
 Console.OutputEncoding = Encoding.UTF8;
 
 using HttpClient client = new HttpClient();
 {
-List<string> areaNameList = new List<string>();
-areaNameList = await GrabAreaNames(client, areaNameList);
+List<Area> areaNameList = new List<Area>();
+areaNameList = await GrabAreaNames(client);
   client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
   client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
   client.DefaultRequestHeaders.Add("Referer", "https://example.com");
@@ -57,7 +58,7 @@ int areaInt = 0;
                     }
                     if (!found)
                     {
-                        candidates.Add(new Candidate(result[i + 4].Substring(18, result[i + 4].Length - 20), result[i].Substring(17, result[i].Length - 19)));
+                        candidates.Add(new Candidate(result[i + 4].Substring(18, result[i + 4].Length - 20), result[i].Substring(17, result[i].Length - 19),areaNameList[candidates.Count]));
                         if (maxSize == 0)
                             maxSize = 1;
                     }
@@ -66,10 +67,16 @@ int areaInt = 0;
             }
 
             //Add class to csv method
-            ClassToCsv(maxSize, nameNumber, candidates, areaInt, areaNameList);
+            ClassToCsv(maxSize, nameNumber, candidates, areaInt);
+            using (var db = new DataToSql()){
+            db.candidates.Add(candidates[areaInt]);
+            db.SaveChanges();
+           }
             areaInt++;
             nameNumber++;
+            
         }
+        
     }
     catch (HttpRequestException e)
   {
@@ -77,9 +84,11 @@ int areaInt = 0;
   }
 }
 
-static async Task<List<string>> GrabAreaNames(HttpClient client, List<string> areaNameList)
+static async Task<List<Area>> GrabAreaNames(HttpClient client)
 {
+  List<string> areaNameList = new List<string>();
    var htmlWeb = new HtmlWeb();
+   List<Area> areas = new List<Area>();
     var httpText = htmlWeb.Load("""https://www.cik.bg/bg/epns2024/candidates/ns?rik=0&party=0""");
           string[] resultNames = httpText.Text.Split("\n\r".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
     System.Console.WriteLine(resultNames[1]);
@@ -99,8 +108,12 @@ static async Task<List<string>> GrabAreaNames(HttpClient client, List<string> ar
     foreach(var item in areaNameList)
     {
       System.Console.WriteLine(item);
+      areas.Add(new Area(item));
+      using (var db = new DataToSql()){
+        db.areas.Add(new Area(item));
+        }
     }
-    return areaNameList;
+    return areas;
 }
 
 static async Task GrabEveryJson(HttpClient client, List<string> areaList,int listSize)
@@ -123,15 +136,15 @@ static async Task GrabEveryJson(HttpClient client, List<string> areaList,int lis
     }
 }
 
-static void ClassToCsv(int maxSize, int nameNumberV, List<Candidate> candidates,int areaInt,List<string> areaList)
+static void ClassToCsv(int maxSize, int nameNumberV, List<Candidate> candidates,int areaInt)
 {
   string areaName;
-  if(areaList.Count>areaInt){
-    areaName = areaList[areaInt];
-  }
-   else{
-    areaName = areaInt.ToString();
-   }
+ // if(areaList.Count>areaInt){
+    areaName = candidates[areaInt]._Area.Name;
+ // }
+  // else{
+//areaName = areaInt.ToString();
+  // }
   using (var writer = new StreamWriter($".\\CsvFolder\\{areaName}.csv"))
   {
     string names = "";
@@ -175,17 +188,29 @@ static void ClassToCsv(int maxSize, int nameNumberV, List<Candidate> candidates,
     }
 public class Candidate
 {
-  public Candidate(string groupName, string personNames)
-  {
-    GroupName = groupName;
-    PersonNames = new List<string>();
-    PersonNames.Add(personNames);
-  }
-
+    public Candidate(string groupName, string personNames, Area area)
+    {
+        GroupName = groupName;
+        PersonNames = new List<string>();
+        PersonNames.Add(personNames);
+        _Area = area;
+    }
+    public int Id {get;set;}
+    public Area _Area {get;set;}
   public string GroupName { get; set; } = string.Empty;
   public List<String> PersonNames { get; set; } = new List<string>();
 
 
+}
+
+public class Area{
+    public Area(string name)
+    {
+        Name = name;
+    }
+
+    public int Id {get;set;}
+  public string Name{get;set;} = string.Empty;
 }
 
 
