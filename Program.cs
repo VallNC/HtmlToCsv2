@@ -10,6 +10,8 @@ using System.Text.Json;
 using System.Dynamic;
 using HtmlToCsv2;
 
+
+
 Console.OutputEncoding = Encoding.UTF8;
 
 using HttpClient client = new HttpClient();
@@ -50,7 +52,7 @@ int areaInt = 0;
                     {
                         if (item2.GroupName == result[i + 4].Substring(18, result[i + 4].Length - 20))
                         {
-                            item2.PersonNames.Add(result[i].Substring(17, result[i].Length - 19));
+                            item2.PersonNames.Add(new Person{Name = result[i].Substring(17, result[i].Length - 19)});
                             found = true;
                             if (item2.PersonNames.Count > maxSize)
                                 maxSize = item2.PersonNames.Count;
@@ -68,9 +70,10 @@ int areaInt = 0;
 
             //Add class to csv method
             ClassToCsv(maxSize, nameNumber, candidates, areaInt);
-            using (var db = new DataToSql()){
-            db.candidates.Add(candidates[areaInt]);
-            db.SaveChanges();
+           //DB add logic
+           using (var context = new DataToSql()){
+            context.candidates.AddRange(candidates);
+            context.SaveChanges();
            }
             areaInt++;
             nameNumber++;
@@ -109,9 +112,11 @@ static async Task<List<Area>> GrabAreaNames(HttpClient client)
     {
       System.Console.WriteLine(item);
       areas.Add(new Area(item));
-      using (var db = new DataToSql()){
-        db.areas.Add(new Area(item));
-        }
+       //DbAreaLogic
+       using (var context = new DataToSql()){
+            context.areas.Add(new Area(item));
+            context.SaveChanges();
+           }
     }
     return areas;
 }
@@ -157,7 +162,7 @@ static void ClassToCsv(int maxSize, int nameNumberV, List<Candidate> candidates,
     for (int i = 0; i < maxSize; i++)
     {
       string combinedString = string.Join(", ", candidates
-      .Select(list => list.PersonNames.Count > i ? list.PersonNames[i] : string.Empty));
+      .Select(list => list.PersonNames.Count > i ? list.PersonNames[i].Name : string.Empty));
       writer.WriteLine(combinedString);
     }
     
@@ -188,17 +193,19 @@ static void ClassToCsv(int maxSize, int nameNumberV, List<Candidate> candidates,
     }
 public class Candidate
 {
+  public Candidate(){}
     public Candidate(string groupName, string personNames, Area area)
     {
         GroupName = groupName;
-        PersonNames = new List<string>();
-        PersonNames.Add(personNames);
+        PersonNames = new List<Person>();
+        PersonNames.Add(new Person{ Name= personNames});
         _Area = area;
     }
+
     public int Id {get;set;}
     public Area _Area {get;set;}
   public string GroupName { get; set; } = string.Empty;
-  public List<String> PersonNames { get; set; } = new List<string>();
+  public List<Person> PersonNames { get; set; } = new List<Person>();
 
 
 }
@@ -208,12 +215,17 @@ public class Area{
     {
         Name = name;
     }
-
+    
+    public Area(){}
     public int Id {get;set;}
   public string Name{get;set;} = string.Empty;
 }
 
-
+public class Person(){
+  public int Id{get;set;}
+  public string Name{get;set;} = string.Empty;
+  public Candidate candidate {get;set;} = new Candidate();
+}
 
 
 
